@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube View Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #111a14;
+            --surface: #172019;
+            --surface2: #1e2b20;
+            --border: #2a3d2d;
+            --red: #4d9e5f;
+            --red-dim: #3d8a4e;
+            --red-glow: rgba(77,158,95,0.18);
+            --text: #d4e8d8;
+            --text-muted: #7aaa85;
+            --text-dim: #4a6e52;
+            --green: #7ed99a;
+            --green-dim: rgba(126,217,154,0.12);
+            --mono: 'Noto Sans KR', sans-serif;
+            --sans: 'Noto Sans KR', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px 120px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 760px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Header */
+        .header {
+            background: var(--red);
+            padding: 28px 32px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.02em;
+        }
+        .header p {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.75);
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        /* Body */
+        .body {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 7px;
+        }
+
+        input[type="password"], textarea {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 11px 14px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            resize: vertical;
+        }
+        input[type="password"]:focus, textarea:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px var(--red-glow);
+        }
+        input::placeholder, textarea::placeholder { color: var(--text-dim); }
+
+        .hint {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+        .hint code {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .row > div { flex: 1; min-width: 200px; }
+
+        .process-btn {
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 28px;
+            font-family: var(--sans);
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+            box-shadow: 0 4px 20px rgba(255,45,45,0.25);
+            align-self: flex-end;
+        }
+        .process-btn:hover { background: var(--red-dim); box-shadow: 0 4px 28px rgba(255,45,45,0.4); }
+        .process-btn:active { transform: scale(0.97); }
+        .process-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Loading */
+        .loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 52px 32px;
+            gap: 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+        }
+        .loading.active { display: flex; }
+        .spin {
+            width: 36px; height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading p { color: var(--text-muted); font-size: 0.85rem; }
+        .loading-detail { font-family: var(--mono); font-size: 0.75rem; color: var(--text-dim); }
+
+        /* Section Headers */
+        .section-header {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-top: none;
+            padding: 10px 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-header span {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .section-header .count-badge {
+            background: var(--border);
+            color: var(--text-muted);
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 0.68rem;
+            font-family: var(--mono);
+        }
+        .section-header .playlist-name {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        /* Video List */
+        #videoList {
+            display: none;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 16px 16px;
+            overflow: hidden;
+        }
+        #videoList.active { display: flex; }
+
+        .video-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 24px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            transition: background 0.15s, opacity 0.2s;
+        }
+        .video-row:first-child { border-top: none; }
+        .video-row:hover { background: var(--surface2); }
+        .video-row.excluded { opacity: 0.4; }
+
+        .thumb {
+            flex-shrink: 0;
+            width: 120px; height: 68px;
+            border-radius: 7px;
+            overflow: hidden;
+            background: var(--border);
+        }
+        .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .video-info { flex: 1; min-width: 0; }
+        .video-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 5px;
+        }
+        .video-meta {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+        }
+        .meta-item.views { color: #f0f0f0; font-weight: 500; }
+        .meta-item.date { color: var(--text-dim); }
+        .meta-item svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+        .toggle-btn {
+            flex-shrink: 0;
+            width: 110px;
+            padding: 7px 0;
+            border-radius: 20px;
+            border: 1px solid;
+            font-family: var(--sans);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .toggle-btn.included {
+            background: var(--green-dim);
+            border-color: rgba(34,197,94,0.3);
+            color: var(--green);
+        }
+        .toggle-btn.excluded {
+            background: transparent;
+            border-color: var(--border);
+            color: var(--text-dim);
+        }
+        .toggle-btn:hover { filter: brightness(1.2); }
+        .toggle-btn svg { width: 12px; height: 12px; }
+
+        /* Error row */
+        .error-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            background: rgba(77,158,95,0.05);
+            border-top: 1px solid var(--border);
+        }
+        .error-row .err-url {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .error-badge {
+            background: rgba(77,158,95,0.12);
+            color: var(--green);
+            border: 1px solid rgba(255,45,45,0.2);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(17,26,20,0.92);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .footer-inner {
+            width: 100%;
+            max-width: 760px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .footer-left h2 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .footer-left p {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+            font-family: var(--mono);
+        }
+        .total-views {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--green);
+            letter-spacing: -0.03em;
+            font-family: var(--mono);
+            transition: color 0.3s;
+        }
+
+        .select-all-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 8px 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+        }
+        .mini-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-family: var(--sans);
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .mini-btn:hover { border-color: var(--text-muted); color: var(--text-muted); }
+
+        @media (max-width: 520px) {
+            .body { padding: 20px 16px; }
+            .video-row { flex-wrap: wrap; padding: 12px 16px; }
+            .thumb { width: 100%; height: 180px; }
+            .toggle-btn { width: 100%; }
+            .header { padding: 20px 16px; }
+            .select-all-row, .section-header { padding: 8px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="header">
+        <div class="header-title">
+            <div>
+                <h1>YouTube View Calculator</h1>
+                <p>Individual videos · Playlists · Mixed — all supported</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="body">
+        <div>
+            <label>YouTube Data API v3 Key</label>
+            <input type="password" id="apiKey" placeholder="... (leave empty for mock data)">
+            <p class="hint">Without an API key, mock data is generated. Get a free key at <code>console.cloud.google.com</code>.</p>
+        </div>
+        <div>
+            <label>Links — one per line</label>
+            <textarea id="linksInput" rows="6" placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ&#10;https://youtu.be/abc123&#10;https://www.youtube.com/playlist?list=PLxxxxxx&#10;https://www.youtube.com/watch?v=xyz&list=PLxxxxxx"></textarea>
+            <p class="hint">Supports: individual video URLs · playlist URLs · video URLs containing a <code>list=</code> param (will expand the full playlist)</p>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+            <button class="process-btn" id="processBtn">Process Links</button>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spin"></div>
+        <p id="loadingMsg">Fetching video details…</p>
+        <span class="loading-detail" id="loadingDetail"></span>
+    </div>
+
+    <div id="videoList"></div>
+</div>
+
+<div class="footer">
+    <div class="footer-inner">
+        <div class="footer-left">
+            <h2>Total Views</h2>
+            <p id="selectedCount">0 videos selected</p>
+        </div>
+        <div class="total-views" id="totalViews">0</div>
+    </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let allVideos = []; // flat list: { id, title, views, date, thumbnail, selected, sourceLabel }
+
+// ─── Helpers ─────────────────────────────────────────────
+function fmt(n) { return n.toLocaleString('en-US'); }
+function fmtDate(s) {
+    const d = new Date(s);
+    return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+}
+function seededHash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+    return h;
+}
+
+// ─── URL Parsing ─────────────────────────────────────────
+function extractVideoID(url) {
+    try {
+        const u = new URL(url.trim());
+        if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null;
+        return u.searchParams.get('v') || null;
+    } catch { return null; }
+}
+
+function extractPlaylistID(url) {
+    try {
+        const u = new URL(url.trim());
+        return u.searchParams.get('list') || null;
+    } catch { return null; }
+}
+
+// Returns array of { type: 'video'|'playlist', id, raw }
+function parseLines(lines) {
+    const results = [];
+    const seen = new Set();
+
+    for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) continue;
+
+        const vid = extractVideoID(line);
+        const plid = extractPlaylistID(line);
+
+        // Playlist-only URL (no v= param, but has list=)
+        if (!vid && plid) {
+            const key = 'pl:' + plid;
+            if (!seen.has(key)) { seen.add(key); results.push({ type: 'playlist', id: plid, raw: line }); }
+        }
+        // Video URL with a list param → expand playlist
+        else if (vid && plid) {
+            const key = 'pl:' + plid;
+            if (!seen.has(key)) { seen.add(key); results.push({ type: 'playlist', id: plid, raw: line }); }
+        }
+        // Plain video URL
+        else if (vid) {
+            const key = 'v:' + vid;
+            if (!seen.has(key)) { seen.add(key); results.push({ type: 'video', id: vid, raw: line }); }
+        } else {
+            results.push({ type: 'error', raw: line });
+        }
+    }
+    return results;
+}
+
+// ─── Mock Data ───────────────────────────────────────────
+function mockVideo(id, playlistTitle = null) {
+    const h = seededHash(id);
+    const views = Math.abs(Math.floor(Math.sin(h) * 12000000)) + 80000;
+    const date = new Date(Date.now() - Math.abs(Math.sin(h + 1)) * 1e11);
+    return {
+        id, title: `Sample Video Title (${id})`,
+        views, date: date.toISOString(),
+        thumbnail: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+        selected: true,
+        sourceLabel: playlistTitle || 'Individual'
+    };
+}
+
+function mockPlaylist(plid) {
+    const h = seededHash(plid);
+    const count = (Math.abs(h) % 8) + 3;
+    const title = `Sample Playlist (${plid.slice(0,8)}…)`;
+    const vids = [];
+    for (let i = 0; i < count; i++) {
+        vids.push(mockVideo(plid + '_v' + i, title));
+    }
+    return { title, videos: vids };
+}
+
+// ─── Real API Calls ──────────────────────────────────────
+async function fetchVideos(ids, apiKey) {
+    const batches = [];
+    for (let i = 0; i < ids.length; i += 50) batches.push(ids.slice(i, i + 50));
+    const all = [];
+    for (const batch of batches) {
+        const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${batch.join(',')}&key=${apiKey}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        if (d.error) throw new Error(d.error.message);
+        for (const item of (d.items || [])) {
+            all.push({
+                id: item.id,
+                title: item.snippet.title,
+                views: parseInt(item.statistics.viewCount || 0, 10),
+                date: item.snippet.publishedAt,
+                thumbnail: (item.snippet.thumbnails.medium || item.snippet.thumbnails.default || {}).url || '',
+                selected: true,
+                sourceLabel: ''
+            });
+        }
+    }
+    return all;
+}
+
+async function fetchPlaylistItems(plid, apiKey) {
+    // Fetch playlist title
+    let plTitle = 'Playlist';
+    try {
+        const r = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${plid}&key=${apiKey}`);
+        const d = await r.json();
+        if (d.items && d.items[0]) plTitle = d.items[0].snippet.title;
+    } catch {}
+
+    // Paginate playlist items
+    const videoIds = [];
+    let pageToken = '';
+    do {
+        const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=${plid}&key=${apiKey}${pageToken ? '&pageToken=' + pageToken : ''}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        if (d.error) throw new Error(d.error.message);
+        for (const item of (d.items || [])) {
+            videoIds.push(item.contentDetails.videoId);
+        }
+        pageToken = d.nextPageToken || '';
+    } while (pageToken);
+
+    const videos = await fetchVideos(videoIds, apiKey);
+    videos.forEach(v => v.sourceLabel = plTitle);
+    return { title: plTitle, videos };
+}
+
+// ─── Process ─────────────────────────────────────────────
+async function processLinks() {
+    const text = document.getElementById('linksInput').value.trim();
+    if (!text) return;
+
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const lines = text.split('\n');
+    const parsed = parseLines(lines);
+
+    // Reset
+    allVideos = [];
+    document.getElementById('videoList').innerHTML = '';
+    document.getElementById('videoList').classList.remove('active');
+    const loading = document.getElementById('loading');
+    loading.classList.add('active');
+    document.getElementById('processBtn').disabled = true;
+
+    const groups = []; // { label, videos: [], errors: [] }
+    const errors = [];
+
+    for (const item of parsed) {
+        if (item.type === 'error') {
+            errors.push(item.raw);
+            continue;
+        }
+
+        setLoadingMsg(
+            item.type === 'playlist' ? `Expanding playlist…` : `Fetching video…`,
+            item.raw.length > 60 ? item.raw.slice(0,60)+'…' : item.raw
+        );
+
+        try {
+            if (item.type === 'playlist') {
+                if (apiKey) {
+                    const result = await fetchPlaylistItems(item.id, apiKey);
+                    groups.push({ label: result.title, isPlaylist: true, videos: result.videos });
+                    allVideos.push(...result.videos);
+                } else {
+                    const result = mockPlaylist(item.id);
+                    groups.push({ label: result.title, isPlaylist: true, videos: result.videos });
+                    allVideos.push(...result.videos);
+                }
+            } else {
+                if (apiKey) {
+                    const vs = await fetchVideos([item.id], apiKey);
+                    if (vs.length > 0) {
+                        vs[0].sourceLabel = 'Individual';
+                        groups.push({ label: null, isPlaylist: false, videos: vs });
+                        allVideos.push(...vs);
+                    }
+                } else {
+                    await new Promise(r => setTimeout(r, 120));
+                    const v = mockVideo(item.id);
+                    groups.push({ label: null, isPlaylist: false, videos: [v] });
+                    allVideos.push(v);
+                }
+            }
+        } catch (err) {
+            errors.push(item.raw + ' [' + err.message + ']');
+        }
+    }
+
+    loading.classList.remove('active');
+    document.getElementById('processBtn').disabled = false;
+    renderAll(groups, errors);
+}
+
+function setLoadingMsg(msg, detail = '') {
+    document.getElementById('loadingMsg').textContent = msg;
+    document.getElementById('loadingDetail').textContent = detail;
+}
+
+// ─── Render ───────────────────────────────────────────────
+function renderAll(groups, errors) {
+    const container = document.getElementById('videoList');
+    container.innerHTML = '';
+
+    if (allVideos.length === 0 && errors.length === 0) {
+        container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:0.85rem;">No valid videos found. Check your links.</div>`;
+        container.classList.add('active');
+        updateFooter();
+        return;
+    }
+
+    // Select/Deselect all controls
+    if (allVideos.length > 1) {
+        const ctrl = document.createElement('div');
+        ctrl.className = 'select-all-row';
+        ctrl.innerHTML = `
+            <button class="mini-btn" onclick="selectAll(true)">Select All</button>
+            <button class="mini-btn" onclick="selectAll(false)">Deselect All</button>
+        `;
+        container.appendChild(ctrl);
+    }
+
+    // Render groups
+    for (const group of groups) {
+        if (group.isPlaylist || group.videos.length > 0) {
+            if (group.isPlaylist) {
+                const sec = document.createElement('div');
+                sec.className = 'section-header';
+                sec.innerHTML = `
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--red);flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h10M4 18h10"/></svg>
+                    <span>Playlist</span>
+                    <span class="playlist-name" title="${esc(group.label)}">${esc(group.label)}</span>
+                    <span class="count-badge">${group.videos.length} videos</span>
+                `;
+                container.appendChild(sec);
+            }
+            for (const video of group.videos) {
+                const idx = allVideos.indexOf(video);
+                container.appendChild(buildRow(video, idx));
+            }
+        }
+    }
+
+    // Errors
+    for (const e of errors) {
+        const row = document.createElement('div');
+        row.className = 'error-row';
+        row.innerHTML = `<span class="err-url" title="${esc(e)}">${esc(e)}</span><span class="error-badge">INVALID</span>`;
+        container.appendChild(row);
+    }
+
+    container.classList.add('active');
+    updateFooter();
+}
+
+function buildRow(video, idx) {
+    const row = document.createElement('div');
+    row.className = 'video-row' + (video.selected ? '' : ' excluded');
+    row.id = 'row-' + idx;
+    row.innerHTML = `
+        <div class="thumb"><img src="${video.thumbnail}" alt="" loading="lazy" onerror="this.style.display='none'"></div>
+        <div class="video-info">
+            <div class="video-title" title="${esc(video.title)}">${esc(video.title)}</div>
+            <div class="video-meta">
+                <span class="meta-item views">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    ${fmt(video.views)}
+                </span>
+                <span class="meta-item date">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    ${fmtDate(video.date)}
+                </span>
+            </div>
+        </div>
+        <button id="btn-${idx}" class="toggle-btn ${video.selected ? 'included' : 'excluded'}" onclick="toggle(${idx})">
+            ${video.selected ? checkIcon() + ' Included' : xIcon() + ' Excluded'}
+        </button>
+    `;
+    return row;
+}
+
+function toggle(idx) {
+    allVideos[idx].selected = !allVideos[idx].selected;
+    const row = document.getElementById('row-' + idx);
+    const btn = document.getElementById('btn-' + idx);
+    const sel = allVideos[idx].selected;
+    row.className = 'video-row' + (sel ? '' : ' excluded');
+    btn.className = 'toggle-btn ' + (sel ? 'included' : 'excluded');
+    btn.innerHTML = sel ? checkIcon() + ' Included' : xIcon() + ' Excluded';
+    updateFooter();
+}
+
+function selectAll(val) {
+    allVideos.forEach((v, i) => {
+        v.selected = val;
+        const row = document.getElementById('row-' + i);
+        const btn = document.getElementById('btn-' + i);
+        if (row) row.className = 'video-row' + (val ? '' : ' excluded');
+        if (btn) { btn.className = 'toggle-btn ' + (val ? 'included' : 'excluded'); btn.innerHTML = val ? checkIcon() + ' Included' : xIcon() + ' Excluded'; }
+    });
+    updateFooter();
+}
+
+function updateFooter() {
+    const sel = allVideos.filter(v => v.selected);
+    const total = sel.reduce((s, v) => s + v.views, 0);
+    document.getElementById('totalViews').textContent = fmt(total);
+    document.getElementById('selectedCount').textContent = `${sel.length} of ${allVideos.length} videos selected`;
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function checkIcon() { return `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`; }
+function xIcon() { return `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`; }
+
+document.getElementById('processBtn').addEventListener('click', processLinks);
+</script>
+</body>
+</html>
