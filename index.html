@@ -33,7 +33,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 40px 16px 120px;
+            padding: 40px 16px 140px;
         }
 
         .app {
@@ -346,7 +346,7 @@
             background: rgba(17,26,20,0.92);
             backdrop-filter: blur(16px);
             border-top: 1px solid var(--border);
-            padding: 16px 24px;
+            padding: 12px 24px 14px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -357,6 +357,11 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 16px;
+        }
+        .footer-left {
+            flex: 1;
+            min-width: 0;
         }
         .footer-left h2 {
             font-size: 0.75rem;
@@ -371,6 +376,12 @@
             margin-top: 2px;
             font-family: var(--mono);
         }
+        .footer-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0;
+        }
         .total-views {
             font-size: 2.2rem;
             font-weight: 800;
@@ -378,6 +389,37 @@
             letter-spacing: -0.03em;
             font-family: var(--mono);
             transition: color 0.3s;
+            line-height: 1.1;
+        }
+        .footer-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 4px;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+        .stat-label {
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .stat-value {
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        .stat-divider {
+            width: 1px;
+            height: 14px;
+            background: var(--border);
         }
 
         .select-all-row {
@@ -412,6 +454,8 @@
             .toggle-btn { width: 100%; }
             .header { padding: 20px 16px; }
             .select-all-row, .section-header { padding: 8px 16px; }
+            .footer-stats { gap: 10px; }
+            .total-views { font-size: 1.7rem; }
         }
     </style>
 </head>
@@ -458,7 +502,20 @@
             <h2>Total Views</h2>
             <p id="selectedCount">0 videos selected</p>
         </div>
-        <div class="total-views" id="totalViews">0</div>
+        <div class="footer-right">
+            <div class="total-views" id="totalViews">0</div>
+            <div class="footer-stats" id="footerStats" style="display:none;">
+                <div class="stat-item">
+                    <span class="stat-label">Avg</span>
+                    <span class="stat-value" id="avgViews">—</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-label">Pop SD</span>
+                    <span class="stat-value" id="sdViews">—</span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -506,18 +563,13 @@ function parseLines(lines) {
         const vid = extractVideoID(line);
         const plid = extractPlaylistID(line);
 
-        // Playlist-only URL (no v= param, but has list=)
         if (!vid && plid) {
             const key = 'pl:' + plid;
             if (!seen.has(key)) { seen.add(key); results.push({ type: 'playlist', id: plid, raw: line }); }
-        }
-        // Video URL with a list param → expand playlist
-        else if (vid && plid) {
+        } else if (vid && plid) {
             const key = 'pl:' + plid;
             if (!seen.has(key)) { seen.add(key); results.push({ type: 'playlist', id: plid, raw: line }); }
-        }
-        // Plain video URL
-        else if (vid) {
+        } else if (vid) {
             const key = 'v:' + vid;
             if (!seen.has(key)) { seen.add(key); results.push({ type: 'video', id: vid, raw: line }); }
         } else {
@@ -578,7 +630,6 @@ async function fetchVideos(ids, apiKey) {
 }
 
 async function fetchPlaylistItems(plid, apiKey) {
-    // Fetch playlist title
     let plTitle = 'Playlist';
     try {
         const r = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${plid}&key=${apiKey}`);
@@ -586,7 +637,6 @@ async function fetchPlaylistItems(plid, apiKey) {
         if (d.items && d.items[0]) plTitle = d.items[0].snippet.title;
     } catch {}
 
-    // Paginate playlist items
     const videoIds = [];
     let pageToken = '';
     do {
@@ -614,7 +664,6 @@ async function processLinks() {
     const lines = text.split('\n');
     const parsed = parseLines(lines);
 
-    // Reset
     allVideos = [];
     document.getElementById('videoList').innerHTML = '';
     document.getElementById('videoList').classList.remove('active');
@@ -622,7 +671,7 @@ async function processLinks() {
     loading.classList.add('active');
     document.getElementById('processBtn').disabled = true;
 
-    const groups = []; // { label, videos: [], errors: [] }
+    const groups = [];
     const errors = [];
 
     for (const item of parsed) {
@@ -689,7 +738,6 @@ function renderAll(groups, errors) {
         return;
     }
 
-    // Select/Deselect all controls
     if (allVideos.length > 1) {
         const ctrl = document.createElement('div');
         ctrl.className = 'select-all-row';
@@ -700,7 +748,6 @@ function renderAll(groups, errors) {
         container.appendChild(ctrl);
     }
 
-    // Render groups
     for (const group of groups) {
         if (group.isPlaylist || group.videos.length > 0) {
             if (group.isPlaylist) {
@@ -721,7 +768,6 @@ function renderAll(groups, errors) {
         }
     }
 
-    // Errors
     for (const e of errors) {
         const row = document.createElement('div');
         row.className = 'error-row';
@@ -783,9 +829,28 @@ function selectAll(val) {
 
 function updateFooter() {
     const sel = allVideos.filter(v => v.selected);
+    const n = sel.length;
     const total = sel.reduce((s, v) => s + v.views, 0);
+
     document.getElementById('totalViews').textContent = fmt(total);
-    document.getElementById('selectedCount').textContent = `${sel.length} of ${allVideos.length} videos selected`;
+    document.getElementById('selectedCount').textContent = `${n} of ${allVideos.length} videos selected`;
+
+    const statsEl = document.getElementById('footerStats');
+
+    if (n === 0) {
+        statsEl.style.display = 'none';
+        document.getElementById('avgViews').textContent = '—';
+        document.getElementById('sdViews').textContent = '—';
+        return;
+    }
+
+    const avg = total / n;
+    const variance = sel.reduce((s, v) => s + Math.pow(v.views - avg, 2), 0) / n;
+    const sd = Math.sqrt(variance);
+
+    document.getElementById('avgViews').textContent = avg.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    document.getElementById('sdViews').textContent = sd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    statsEl.style.display = 'flex';
 }
 
 function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
